@@ -38,8 +38,6 @@ TAG=demo_fc_3dfy_v7
 CHECKPOINT_PATH=notebook/checkpoints/${TAG}
 FILES=(
     pipeline.yaml
-    slat_decoder_gs.ckpt
-    slat_decoder_gs.yaml
     slat_decoder_mesh.pt
     slat_decoder_mesh.yaml
     slat_generator.ckpt
@@ -50,6 +48,10 @@ FILES=(
     ss_encoder.yaml
     ss_generator.ckpt
     ss_generator.yaml
+    slat_decoder_gs.ckpt
+    slat_decoder_gs.yaml
+    slat_decoder_gs_4.ckpt
+    slat_decoder_gs_4.yaml
 )
 
 mkdir -p ${CHECKPOINT_PATH}
