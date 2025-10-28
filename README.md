@@ -6,7 +6,7 @@
 
 [[`<REPLACE ME Paper>`](https://ai.meta.com/research/publications/sam-2-segment-anything-in-images-and-videos/)] [[`<REPLACE ME Project>`](https://ai.meta.com/sam2)] [[`<REPLACE ME Demo>`](https://sam2.metademolab.com/)] [[`<REPLACE ME Dataset>`](https://ai.meta.com/datasets/segment-anything-video)] [[`<REPLACE ME Blog>`](https://ai.meta.com/blog/segment-anything-2)] [[`<REPLACE ME BibTeX>`](#citing-sam-2)]
 
-< Architecture Diagram goes here >
+![](doc/arch.png)
 
 **Segment Anything 3D Models (SAM 3D)** is a pair of foundation models towards solving 3D perception from monocular views. < MORE DETAILS HERE>
 
