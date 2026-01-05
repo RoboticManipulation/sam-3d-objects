@@ -10,3 +10,4 @@ ros2_bridge_ws/src/sam3d_ros2_bridge/sam3d_ros2_bridge/received_meshes/
 test_scale_comparison.py
 test_mesh_size.py
 demo_with_pointmap.py
+compare_ros2_vs_original.py

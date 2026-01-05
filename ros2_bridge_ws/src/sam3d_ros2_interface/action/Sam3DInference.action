@@ -1,10 +1,15 @@
 # Goal: Input data for SAM 3D inference
 sensor_msgs/Image[] images      # Array of RGB images
 sensor_msgs/Image[] masks       # Array of mask images (grayscale)
+sensor_msgs/Image[] depth_images  # Array of depth images (optional, for metric scale)
+sensor_msgs/CameraInfo[] camera_infos  # Array of camera info (optional, for metric scale)
 int32 seed 42                   # Random seed for inference
 string output_name              # Base name for output mesh files
 float32 decimation_ratio 0.05   # Mesh decimation ratio (0.01-1.0)
 bool merge_scene false          # Whether to merge multiple objects into one scene
+float32 depth_scale 1000.0      # Factor to divide depth by to get meters (1000.0 for mm, 1.0 for m)
+float32 min_depth 0.01          # Minimum valid depth in meters
+float32 max_depth 10.0          # Maximum valid depth in meters
 ---
 # Result: Output after inference completion
 bool success                    # Whether inference succeeded

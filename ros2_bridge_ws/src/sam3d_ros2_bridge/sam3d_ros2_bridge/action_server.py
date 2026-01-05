@@ -95,7 +95,29 @@ class Sam3DActionServer(Node):
             )
             return GoalResponse.REJECT
 
-        self.get_logger().info(f'Accepting goal with {len(goal_request.images)} image-mask pairs')
+        # Validate depth images and camera info if provided
+        if len(goal_request.depth_images) > 0 or len(goal_request.camera_infos) > 0:
+            if len(goal_request.depth_images) != len(goal_request.images):
+                self.get_logger().warn(
+                    f'Rejecting goal: Number of depth images ({len(goal_request.depth_images)}) '
+                    f'does not match number of images ({len(goal_request.images)})'
+                )
+                return GoalResponse.REJECT
+
+            if len(goal_request.camera_infos) != len(goal_request.images):
+                self.get_logger().warn(
+                    f'Rejecting goal: Number of camera infos ({len(goal_request.camera_infos)}) '
+                    f'does not match number of images ({len(goal_request.images)})'
+                )
+                return GoalResponse.REJECT
+
+            self.get_logger().info(
+                f'Accepting goal with {len(goal_request.images)} image-mask-depth-camera_info sets '
+                f'(metric scale enabled)'
+            )
+        else:
+            self.get_logger().info(f'Accepting goal with {len(goal_request.images)} image-mask pairs')
+
         return GoalResponse.ACCEPT
 
     def cancel_callback(self, goal_handle):
@@ -106,7 +128,7 @@ class Sam3DActionServer(Node):
     def ros_image_to_numpy(self, ros_image):
         """Convert ROS Image message to numpy array"""
         try:
-            # Convert ROS Image to OpenCV format (BGR)
+            # Convert ROS Image to OpenCV format
             cv_image = self.bridge.imgmsg_to_cv2(ros_image, desired_encoding='passthrough')
 
             # Handle different encodings
@@ -118,17 +140,35 @@ class Sam3DActionServer(Node):
                 return cv_image.astype(np.uint8)
 
             elif ros_image.encoding == 'mono8' or ros_image.encoding == '8UC1':
-                # Grayscale/mask image
+                # Grayscale/mask image (8-bit)
                 return cv_image.astype(np.uint8)
 
+            elif ros_image.encoding == 'mono16' or ros_image.encoding == '16UC1':
+                # Depth image (16-bit) - preserve full precision!
+                return cv_image.astype(np.uint16)
+
             else:
-                # Try to handle other encodings
-                self.get_logger().warn(f'Unexpected encoding: {ros_image.encoding}, attempting conversion')
-                return cv_image.astype(np.uint8)
+                # Try to handle other encodings - preserve dtype
+                self.get_logger().warn(f'Unexpected encoding: {ros_image.encoding}, dtype: {cv_image.dtype}')
+                return cv_image
 
         except Exception as e:
             self.get_logger().error(f'Failed to convert ROS image to numpy: {e}')
             raise
+
+    def camera_info_to_intrinsics(self, camera_info):
+        """
+        Extract camera intrinsics matrix from CameraInfo message.
+
+        Args:
+            camera_info: sensor_msgs/CameraInfo message
+
+        Returns:
+            K: 3x3 numpy array with camera intrinsics
+        """
+        # CameraInfo.K is a 9-element array representing a 3x3 row-major matrix
+        K = np.array(camera_info.k).reshape(3, 3)
+        return K
 
     def execute_callback(self, goal_handle):
         """Execute the SAM3D inference action"""
@@ -138,8 +178,14 @@ class Sam3DActionServer(Node):
         feedback_msg = Sam3DInference.Feedback()
 
         try:
+            # Check if depth images and camera info are provided
+            use_depth = (len(goal.depth_images) > 0 and len(goal.camera_infos) > 0)
+
             # Step 1: Convert ROS images to numpy arrays
-            feedback_msg.status = 'Converting images and masks to numpy arrays'
+            if use_depth:
+                feedback_msg.status = 'Converting images, masks, depth images and camera intrinsics'
+            else:
+                feedback_msg.status = 'Converting images and masks to numpy arrays'
             feedback_msg.current_step = 1
             feedback_msg.total_steps = 4
             feedback_msg.progress_percent = 25.0
@@ -148,28 +194,85 @@ class Sam3DActionServer(Node):
 
             images = []
             masks = []
+            depths = []
+            K_matrices = []
 
-            for idx, (img_msg, mask_msg) in enumerate(zip(goal.images, goal.masks)):
-                self.get_logger().info(f'Converting image-mask pair {idx+1}/{len(goal.images)}')
+            if use_depth:
+                # Process with depth and camera info for metric scale
+                for idx, (img_msg, mask_msg, depth_msg, cam_info) in enumerate(
+                    zip(goal.images, goal.masks, goal.depth_images, goal.camera_infos)
+                ):
+                    self.get_logger().info(
+                        f'Converting image-mask-depth-camera_info set {idx+1}/{len(goal.images)}'
+                    )
 
-                # Convert images
-                img_np = self.ros_image_to_numpy(img_msg)
-                mask_np = self.ros_image_to_numpy(mask_msg)
+                    # Convert images
+                    img_np = self.ros_image_to_numpy(img_msg)
+                    mask_np = self.ros_image_to_numpy(mask_msg)
+                    depth_np = self.ros_image_to_numpy(depth_msg)
 
-                # Ensure mask is binary
-                if mask_np.ndim == 3:
-                    mask_np = mask_np[:, :, 0]  # Take first channel if multi-channel
+                    # Ensure mask is binary
+                    if mask_np.ndim == 3:
+                        mask_np = mask_np[:, :, 0]  # Take first channel if multi-channel
 
-                # Convert mask to boolean
-                mask_np = (mask_np > 127).astype(np.uint8)
+                    # Convert mask to boolean
+                    mask_np = (mask_np > 127).astype(np.uint8)
 
-                images.append(img_np)
-                masks.append(mask_np)
+                    # Ensure depth is 2D
+                    if depth_np.ndim == 3:
+                        depth_np = depth_np[:, :, 0]  # Take first channel if multi-channel
 
-                self.get_logger().info(
-                    f'  Image shape: {img_np.shape}, dtype: {img_np.dtype}, '
-                    f'Mask shape: {mask_np.shape}, dtype: {mask_np.dtype}'
-                )
+                    # Convert depth to meters (ZMQ server will create pointmap)
+                    self.get_logger().info(
+                        f'  Depth BEFORE conversion: dtype={depth_np.dtype}, '
+                        f'range=[{depth_np.min()}, {depth_np.max()}]'
+                    )
+                    depth_meters = depth_np.astype(np.float32) / goal.depth_scale
+
+                    # Extract camera intrinsics
+                    K = self.camera_info_to_intrinsics(cam_info)
+
+                    images.append(img_np)
+                    masks.append(mask_np)
+                    depths.append(depth_meters)
+                    K_matrices.append(K)
+
+                    self.get_logger().info(
+                        f'  Image shape: {img_np.shape}, dtype: {img_np.dtype}'
+                    )
+                    self.get_logger().info(
+                        f'  Mask shape: {mask_np.shape}, dtype: {mask_np.dtype}'
+                    )
+                    self.get_logger().info(
+                        f'  Depth AFTER conversion: shape={depth_meters.shape}, dtype={depth_meters.dtype}, '
+                        f'range=[{depth_meters.min():.6f}, {depth_meters.max():.6f}] meters'
+                    )
+                    self.get_logger().info(
+                        f'  K matrix: fx={K[0,0]:.2f}, fy={K[1,1]:.2f}, cx={K[0,2]:.2f}, cy={K[1,2]:.2f}'
+                    )
+            else:
+                # Process without depth (no metric scale)
+                for idx, (img_msg, mask_msg) in enumerate(zip(goal.images, goal.masks)):
+                    self.get_logger().info(f'Converting image-mask pair {idx+1}/{len(goal.images)}')
+
+                    # Convert images
+                    img_np = self.ros_image_to_numpy(img_msg)
+                    mask_np = self.ros_image_to_numpy(mask_msg)
+
+                    # Ensure mask is binary
+                    if mask_np.ndim == 3:
+                        mask_np = mask_np[:, :, 0]  # Take first channel if multi-channel
+
+                    # Convert mask to boolean
+                    mask_np = (mask_np > 127).astype(np.uint8)
+
+                    images.append(img_np)
+                    masks.append(mask_np)
+
+                    self.get_logger().info(
+                        f'  Image shape: {img_np.shape}, dtype: {img_np.dtype}, '
+                        f'Mask shape: {mask_np.shape}, dtype: {mask_np.dtype}'
+                    )
 
             # Step 2: Prepare request for ZeroMQ server
             feedback_msg.status = 'Preparing inference request'
@@ -186,6 +289,17 @@ class Sam3DActionServer(Node):
                 'decimation_ratio': goal.decimation_ratio,
                 'merge_scene': goal.merge_scene
             }
+
+            # Add depth data and camera intrinsics if available
+            # The ZMQ server will create pointmaps from this data
+            if use_depth:
+                request['depths'] = depths
+                request['K_matrices'] = K_matrices
+                request['min_depth'] = goal.min_depth
+                request['max_depth'] = goal.max_depth
+                self.get_logger().info(
+                    f'  Including {len(depths)} depth images and K matrices for metric scale inference'
+                )
 
             # Step 3: Send request to ZeroMQ server and wait for response
             feedback_msg.status = 'Running SAM3D inference (this may take a while...)'
