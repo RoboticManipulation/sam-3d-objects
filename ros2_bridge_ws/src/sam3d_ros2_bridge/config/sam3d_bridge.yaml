@@ -1,0 +1,7 @@
+# Configuration file for SAM 3D Objects ROS2 Bridge
+
+sam3d_action_server:
+  ros__parameters:
+    # ZeroMQ server connection settings
+    zmq_host: "localhost"  # Change to IP address if running on different machine
+    zmq_port: 5555         # Default ZeroMQ port

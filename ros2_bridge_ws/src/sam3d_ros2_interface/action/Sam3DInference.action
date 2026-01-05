@@ -1,0 +1,23 @@
+# Goal: Input data for SAM 3D inference
+sensor_msgs/Image[] images      # Array of RGB images
+sensor_msgs/Image[] masks       # Array of mask images (grayscale)
+int32 seed 42                   # Random seed for inference
+string output_name              # Base name for output mesh files
+float32 decimation_ratio 0.05   # Mesh decimation ratio (0.01-1.0)
+bool merge_scene false          # Whether to merge multiple objects into one scene
+---
+# Result: Output after inference completion
+bool success                    # Whether inference succeeded
+string[] mesh_paths             # Absolute paths to generated mesh files
+sam3d_ros2_interface/MeshData[] mesh_data  # Actual mesh file data for network transfer
+int32 num_meshes                # Number of meshes generated
+float32 inference_time          # Time spent on inference (seconds)
+float32 export_time             # Time spent on mesh export (seconds)
+float32 total_time              # Total processing time (seconds)
+string error_message            # Error message if success is false
+---
+# Feedback: Progress updates during inference
+string status                   # Current status message
+int32 current_step              # Current step number
+int32 total_steps               # Total number of steps
+float32 progress_percent        # Progress percentage (0-100)

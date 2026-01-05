@@ -1,1 +1,9 @@
 __pycache__
+*.obj
+
+notebook/images/ref_views_4/
+ros2_bridge_ws/build/
+ros2_bridge_ws/install/
+ros2_bridge_ws/log/
+ros2_bridge_ws/src/sam3d_ros2_bridge/ref_views_4/ob_0000005/
+ros2_bridge_ws/src/sam3d_ros2_bridge/sam3d_ros2_bridge/received_meshes/
