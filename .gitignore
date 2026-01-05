@@ -7,3 +7,6 @@ ros2_bridge_ws/install/
 ros2_bridge_ws/log/
 ros2_bridge_ws/src/sam3d_ros2_bridge/ref_views_4/ob_0000005/
 ros2_bridge_ws/src/sam3d_ros2_bridge/sam3d_ros2_bridge/received_meshes/
+test_scale_comparison.py
+test_mesh_size.py
+demo_with_pointmap.py

@@ -11,10 +11,6 @@ tag = "hf"
 config_path = f"checkpoints/{tag}/pipeline.yaml"
 inference = Inference(config_path, compile=False)
 
-# load image (RGBA only, mask is embedded in the alpha channel)
-# image = load_image("notebook/images/shutterstock_stylish_kidsroom_1640806567/image.png")
-# mask = load_single_mask("notebook/images/shutterstock_stylish_kidsroom_1640806567", index=14)
-
 
 image = load_image("notebook/images/ref_views_4/ob_0000005/rgb/0000000.png")
 mask = load_single_mask("notebook/images/ref_views_4/ob_0000005/mask",index=0)
@@ -88,3 +84,4 @@ else:
 
 
 
+# object_placement/sam-3d-objects/notebook/images/ref_views_4/ob_0000005
