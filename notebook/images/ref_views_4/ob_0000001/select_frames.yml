@@ -1,0 +1,16 @@
+color_files:
+- /mnt/9a72c439-d0a7-45e8-8d20-d7a235d02763/DATASET/YCB_Video/train_real/000013/rgb/000301.png
+- /mnt/9a72c439-d0a7-45e8-8d20-d7a235d02763/DATASET/YCB_Video/train_real/000017/rgb/000831.png
+- /mnt/9a72c439-d0a7-45e8-8d20-d7a235d02763/DATASET/YCB_Video/train_real/000031/rgb/000311.png
+- /mnt/9a72c439-d0a7-45e8-8d20-d7a235d02763/DATASET/YCB_Video/train_real/000006/rgb/000811.png
+video_ids_appear:
+- 1
+- 6
+- 12
+- 13
+- 14
+- 17
+- 24
+- 31
+- 40
+- 41
